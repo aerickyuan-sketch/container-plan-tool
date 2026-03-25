@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>集装箱装箱方案生成器</title>
+  <style>
+    :root{
+      --bg:#07152d;
+      --panel:#1f2d43;
+      --panel2:#162338;
+      --line:#334760;
+      --text:#ffffff;
+      --muted:#b9c7da;
+      --accent:#2f74ff;
+      --danger:#ff5b7f;
+      --ok:#57d18b;
+      --warn:#ffb84d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial, Helvetica, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .wrap{
+      display:grid;
+      grid-template-columns:1.2fr 1fr;
+      gap:16px;
+      padding:14px;
+      min-height:100vh;
+    }
+    .left,.right{display:flex;flex-direction:column;gap:12px;}
+    .card{
+      background:var(--panel);
+      border-radius:10px;
+      padding:14px;
+    }
+    .card h3{
+      margin:0 0 12px;
+      font-size:18px;
+    }
+    .grid-4,.grid-5{
+      display:grid;
+      gap:8px;
+    }
+    .grid-4{grid-template-columns:repeat(4,1fr);}
+    .grid-5{grid-template-columns:repeat(5,1fr);}
+    label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:4px;
+    }
+    input,button{
+      width:100%;
+      border:none;
+      outline:none;
+      padding:10px 8px;
+      background:#eef3ff;
+      color:#000;
+      font-size:14px;
+    }
+    .btns{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+    button{
+      width:auto;
+      min-width:84px;
+      background:var(--accent);
+      color:#fff;
+      cursor:pointer;
+    }
+    button.secondary{background:#5a6a82;}
+    button.danger{background:#c53d5a;}
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:6px;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:14px;
+    }
+    th,td{
+      border:1px solid #2f4259;
+      padding:7px 8px;
+      text-align:center;
+    }
+    th{background:#25354d;}
+    .steps{
+      line-height:1.8;
+      font-size:15px;
+      white-space:pre-wrap;
+    }
+    .summary{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:10px;
+      margin-top:8px;
+    }
+    .metric{
+      background:var(--panel2);
+      padding:10px;
+      border-radius:8px;
+      border:1px solid var(--line);
+    }
+    .metric .k{
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:4px;
+    }
+    .metric .v{
+      font-size:18px;
+      font-weight:700;
+    }
+    .dangerText{color:var(--danger)}
+    .ok{color:var(--ok)}
+    #viewer{
+      height:520px;
+      background:#000;
+      position:relative;
+      overflow:hidden;
+    }
+    #plan2d{
+      display:none;
+      width:100%;
+      height:520px;
+      background:#0b0b0b;
+    }
+    .footerNote{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:8px;
+    }
+    @media (max-width: 1100px){
+      .wrap{grid-template-columns:1fr}
+      #viewer,#plan2d{height:420px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <div class="card">
+        <h3>集装箱</h3>
+        <div class="grid-4">
+          <div>
+            <label>长度 L（米）</label>
+            <input id="cL" type="number" step="0.001" value="12.032">
+          </div>
+          <div>
+            <label>宽度 W（米）</label>
+            <input id="cW" type="number" step="0.001" value="2.352">
+          </div>
+          <div>
+            <label>高度 H（米）</label>
+            <input id="cH" type="number" step="0.001" value="2.393">
+          </div>
+          <div>
+            <label>集装箱自重（kg）</label>
+            <input id="cTare" type="number" step="1" value="3800">
+          </div>
+        </div>
+        <div class="hint">货物尺寸输入单位：毫米（mm）；货物重量单位：kg；集装箱尺寸输入单位：米（m）。</div>
+      </div>
+
+      <div class="card">
+        <h3>货物</h3>
+        <div class="grid-5">
+          <div>
+            <label>长度 L（mm）</label>
+            <input id="iL" type="number" step="1" value="2490">
+          </div>
+          <div>
+            <label>宽度 W（mm）</label>
+            <input id="iW" type="number" step="1" value="1700">
+          </div>
+          <div>
+            <label>高度 H（mm）</label>
+            <input id="iH" type="number" step="1" value="2220">
+          </div>
+          <div>
+            <label>重量（kg）</label>
+            <input id="iWeight" type="number" step="1" value="1000">
+          </div>
+          <div>
+            <label>数量</label>
+            <input id="iQty" type="number" step="1" value="1">
+          </div>
+        </div>
+        <div class="btns">
+          <button id="addBtn" type="button">添加</button>
+          <button id="genBtn" type="button">生成方案</button>
+          <button id="clearBtn" class="secondary" type="button">清空货物</button>
+          <button id="resetBtn" class="danger" type="button">重置示例</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>装箱清单</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>名称</th>
+              <th>L(mm)</th>
+              <th>W(mm)</th>
+              <th>H(mm)</th>
+              <th>重量(kg)</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card">
+        <h3>装箱结论</h3>
+        <div id="resultText" class="steps">请先添加货物，再点击“生成方案”。</div>
+
+        <div class="summary">
+          <div class="metric">
+            <div class="k">容积率 / Utilization</div>
+            <div class="v" id="utilRate">-</div>
+          </div>
+          <div class="metric">
+            <div class="k">货物总重量</div>
+            <div class="v" id="goodsWeight">-</div>
+          </div>
+          <div class="metric">
+            <div class="k">集装箱自重</div>
+            <div class="v" id="containerWeight">-</div>
+          </div>
+          <div class="metric">
+            <div class="k">总重量（箱+货）</div>
+            <div class="v" id="totalWeight">-</div>
+          </div>
+          <div class="metric">
+            <div class="k">重心 X / Y / Z（m）</div>
+            <div class="v" id="cgText">-</div>
+          </div>
+          <div class="metric">
+            <div class="k">偏载预警</div>
+            <div class="v" id="biasWarn">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div id="viewer"></div>
+        <canvas id="plan2d" width="900" height="520"></canvas>
+        <div id="viewerMsg" class="footerNote">白色线框为集装箱；如 3D 加载失败，会自动显示 2D 图示。</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', function () {
+      const state = {
+        items: [],
+        seq: 0,
+        scene: null,
+        camera: null,
+        renderer: null,
+        controls: null,
+        cargoGroup: null,
+        labelGroup: null,
+        use2DOnly: false
+      };
+
+      const els = {
+        cL: document.getElementById('cL'),
+        cW: document.getElementById('cW'),
+        cH: document.getElementById('cH'),
+        cTare: document.getElementById('cTare'),
+        iL: document.getElementById('iL'),
+        iW: document.getElementById('iW'),
+        iH: document.getElementById('iH'),
+        iWeight: document.getElementById('iWeight'),
+        iQty: document.getElementById('iQty'),
+        addBtn: document.getElementById('addBtn'),
+        genBtn: document.getElementById('genBtn'),
+        clearBtn: document.getElementById('clearBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        listBody: document.getElementById('listBody'),
+        resultText: document.getElementById('resultText'),
+        utilRate: document.getElementById('utilRate'),
+        goodsWeight: document.getElementById('goodsWeight'),
+        containerWeight: document.getElementById('containerWeight'),
+        totalWeight: document.getElementById('totalWeight'),
+        cgText: document.getElementById('cgText'),
+        biasWarn: document.getElementById('biasWarn'),
+        viewer: document.getElementById('viewer'),
+        viewerMsg: document.getElementById('viewerMsg'),
+        plan2d: document.getElementById('plan2d')
+      };
+
+      function autoName(index){
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const base = letters[index % 26];
+        const suffix = Math.floor(index / 26);
+        return suffix === 0 ? base : base + suffix;
+      }
+
+      function renderList(){
+        els.listBody.innerHTML = '';
+        if(state.items.length === 0){
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td colspan="6" style="color:#b9c7da;">暂无货物</td>';
+          els.listBody.appendChild(tr);
+          return;
+        }
+        state.items.forEach(function(item){
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + item.name + '</td>' +
+            '<td>' + item.l + '</td>' +
+            '<td>' + item.w + '</td>' +
+            '<td>' + item.h + '</td>' +
+            '<td>' + item.weight + '</td>' +
+            '<td>' + (item.status || '待分析') + '</td>';
+          els.listBody.appendChild(tr);
+        });
+      }
+
+      function addItem(){
+        const l = Number(els.iL.value);
+        const w = Number(els.iW.value);
+        const h = Number(els.iH.value);
+        const weight = Number(els.iWeight.value);
+        const qty = Number(els.iQty.value);
+
+        if(!l || !w || !h || !weight || !qty || l <= 0 || w <= 0 || h <= 0 || weight <= 0 || qty <= 0){
+          alert('请输入有效的货物尺寸、重量和数量。');
+          return;
+        }
+
+        for(let i = 0; i < qty; i++){
+          state.items.push({
+            id: 'ID_' + Date.now() + '_' + state.seq,
+            name: autoName(state.seq),
+            l: l,
+            w: w,
+            h: h,
+            weight: weight,
+            status: '待分析'
+          });
+          state.seq++;
+        }
+
+        renderList();
+      }
+
+      function clearItems(){
+        state.items = [];
+        state.seq = 0;
+        renderList();
+        els.resultText.textContent = '请先添加货物，再点击“生成方案”。';
+        els.utilRate.textContent = '-';
+        els.goodsWeight.textContent = '-';
+        els.containerWeight.textContent = '-';
+        els.totalWeight.textContent = '-';
+        els.cgText.textContent = '-';
+        els.biasWarn.textContent = '-';
+        clear3D();
+      }
+
+      function resetExample(){
+        state.items = [];
+        state.seq = 0;
+
+        const demo = [
+          {l:2490,w:1700,h:2220,weight:1200},
+          {l:2490,w:1700,h:2220,weight:1200},
+          {l:2490,w:1700,h:2220,weight:1200},
+          {l:2490,w:1700,h:2220,weight:1200},
+          {l:2490,w:1000,h:1000,weight:450},
+          {l:2490,w:1000,h:1000,weight:450},
+          {l:2490,w:1000,h:1000,weight:450},
+          {l:2490,w:1000,h:1000,weight:450}
+        ];
+
+        demo.forEach(function(d){
+          state.items.push({
+            id: 'ID_' + Date.now() + '_' + state.seq,
+            name: autoName(state.seq),
+            l: d.l,
+            w: d.w,
+            h: d.h,
+            weight: d.weight,
+            status: '待分析'
+          });
+          state.seq++;
+        });
+
+        renderList();
+        generatePlan();
+      }
+
+      function getContainer(){
+        return {
+          L: Math.round(Number(els.cL.value || 0) * 1000),
+          W: Math.round(Number(els.cW.value || 0) * 1000),
+          H: Math.round(Number(els.cH.value || 0) * 1000),
+          tare: Number(els.cTare.value || 0)
+        };
+      }
+
+      function canStackOn(base, item, containerH){
+        return (
+          item.l <= base.l &&
+          item.w <= base.w &&
+          base.h + item.h <= containerH &&
+          !base.stackItem &&
+          !base.isStacked
+        );
+      }
+
+      function generatePlan(){
+        const container = getContainer();
+
+        if(!container.L || !container.W || !container.H){
+          alert('请输入有效的集装箱尺寸。');
+          return;
+        }
+        if(state.items.length === 0){
+          alert('请先添加货物。');
+          return;
+        }
+
+        state.items.forEach(function(it){
+          it.status = '待分析';
+        });
+
+        const items = state.items.slice().sort(function(a,b){
+          const va = a.l * a.w * a.h;
+          const vb = b.l * b.w * b.h;
+          if(vb !== va) return vb - va;
+          return b.weight - a.weight;
+        });
+
+        const invalid = [];
+        const placed = [];
+        const steps = [];
+        const candidates = [];
+
+        items.forEach(function(item){
+          if(item.l > container.L || item.w > container.W || item.h > container.H){
+            invalid.push({
+              name: item.name,
+              l: item.l,
+              w: item.w,
+              h: item.h,
+              weight: item.weight,
+              reason: '单件超出集装箱尺寸'
+            });
+          } else {
+            candidates.push({
+              name: item.name,
+              l: item.l,
+              w: item.w,
+              h: item.h,
+              weight: item.weight
+            });
+          }
+        });
+
+        let zCursor = 0;
+        const rows = [];
+
+        candidates.forEach(function(item){
+          let stacked = false;
+
+          for(let r = 0; r < rows.length; r++){
+            const row = rows[r];
+            for(let k = 0; k < row.items.length; k++){
+              const base = row.items[k];
+              if(canStackOn(base, item, container.H)){
+                base.stackItem = item;
+                placed.push({
+                  name: item.name,
+                  l: item.l,
+                  w: item.w,
+                  h: item.h,
+                  weight: item.weight,
+                  x: base.x,
+                  y: base.h,
+                  z: base.z,
+                  mode: '堆叠在 ' + base.name + ' 上',
+                  isStacked: true
+                });
+                steps.push((placed.length) + '. ' + item.name + ' 堆叠在 ' + base.name + ' 上');
+                stacked = true;
+                break;
+              }
+            }
+            if(stacked) break;
+          }
+          if(stacked) return;
+
+          let putInRow = false;
+          for(let r = 0; r < rows.length; r++){
+            const row = rows[r];
+            if(row.usedW + item.w <= container.W){
+              const placedItem = {
+                name: item.name,
+                l: item.l,
+                w: item.w,
+                h: item.h,
+                weight: item.weight,
+                x: row.usedW,
+                y: 0,
+                z: row.z,
+                mode: '并排放置',
+                isStacked: false
+              };
+
+              row.items.push(placedItem);
+              row.usedW += item.w;
+              if(item.l > row.maxL) row.maxL = item.l;
+
+              placed.push(placedItem);
+              steps.push((placed.length) + '. ' + item.name + ' 并排放置');
+              putInRow = true;
+              break;
+            }
+          }
+          if(putInRow) return;
+
+          if(zCursor + item.l <= container.L){
+            const row = {
+              z: zCursor,
+              usedW: item.w,
+              maxL: item.l,
+              items: [{
+                name: item.name,
+                l: item.l,
+                w: item.w,
+                h: item.h,
+                weight: item.weight,
+                x: 0,
+                y: 0,
+                z: zCursor,
+                mode: '新排放置',
+                isStacked: false
+              }]
+            };
+
+            rows.push(row);
+            placed.push(row.items[0]);
+            steps.push((placed.length) + '. ' + item.name + ' 新排放置');
+            zCursor += row.maxL;
+          } else {
+            invalid.push({
+              name: item.name,
+              l: item.l,
+              w: item.w,
+              h: item.h,
+              weight: item.weight,
+              reason: '累计长度超出集装箱长度'
+            });
+          }
+        });
+
+        state.items.forEach(function(it){
+          const bad = invalid.find(function(v){ return v.name === it.name; });
+          if(bad){
+            it.status = '不可装';
+            return;
+          }
+          const ok = placed.find(function(v){ return v.name === it.name; });
+          it.status = ok ? ok.mode : '未装入';
+        });
+
+        renderList();
+
+        const containerVol = container.L * container.W * container.H;
+        let goodsVol = 0;
+        let goodsWeight = 0;
+        let sumW = 0, sumX = 0, sumY = 0, sumZ = 0;
+
+        placed.forEach(function(it){
+          goodsVol += it.l * it.w * it.h;
+          goodsWeight += it.weight;
+
+          const cx = it.x + it.w / 2;
+          const cy = it.y + it.h / 2;
+          const cz = it.z + it.l / 2;
+
+          sumW += it.weight;
+          sumX += it.weight * cx;
+          sumY += it.weight * cy;
+          sumZ += it.weight * cz;
+        });
+
+        const util = containerVol ? goodsVol / containerVol * 100 : 0;
+        const totalWeight = goodsWeight + container.tare;
+        const cgx = sumW ? (sumX / sumW / 1000) : 0;
+        const cgy = sumW ? (sumY / sumW / 1000) : 0;
+        const cgz = sumW ? (sumZ / sumW / 1000) : 0;
+
+        const warn = [];
+        if(sumW){
+          if(cgx < container.W / 1000 * 0.35) warn.push('左重');
+          if(cgx > container.W / 1000 * 0.65) warn.push('右重');
+          if(cgz < container.L / 1000 * 0.35) warn.push('前重');
+          if(cgz > container.L / 1000 * 0.65) warn.push('后重');
+        }
+
+        const validNames = placed.map(function(x){ return x.name; });
+
+        let txt = '';
+        txt += '可装货物：' + (validNames.length ? validNames.join('、') : '无') + '\n';
+        txt += '不可装货物：' + (invalid.length ? invalid.map(function(x){ return x.name + '（' + x.reason + '）'; }).join('、') : '无') + '\n\n';
+        txt += '装箱步骤：\n' + (steps.length ? steps.join('\n') : '无');
+
+        els.resultText.textContent = txt;
+        els.utilRate.textContent = util.toFixed(2) + '%';
+        els.goodsWeight.textContent = goodsWeight.toFixed(0) + ' kg';
+        els.containerWeight.textContent = container.tare.toFixed(0) + ' kg';
+        els.totalWeight.textContent = totalWeight.toFixed(0) + ' kg';
+        els.cgText.textContent = cgx.toFixed(2) + ' / ' + cgy.toFixed(2) + ' / ' + cgz.toFixed(2);
+        els.biasWarn.innerHTML = warn.length
+          ? '<span class="dangerText">⚠ ' + warn.join(' / ') + '</span>'
+          : '<span class="ok">正常</span>';
+
+        draw3D(container, placed, invalid);
+      }
+
+      function init3D(){
+        try{
+          if(typeof THREE === 'undefined'){
+            throw new Error('THREE 未加载');
+          }
+
+          const viewer = els.viewer;
+          const width = viewer.clientWidth || 800;
+          const height = viewer.clientHeight || 520;
+
+          const scene = new THREE.Scene();
+          scene.background = new THREE.Color(0x000000);
+
+          const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 2000);
+          camera.position.set(10, 8, 18);
+
+          const renderer = new THREE.WebGLRenderer({ antialias: true });
+          renderer.setSize(width, height);
+          viewer.innerHTML = '';
+          viewer.appendChild(renderer.domElement);
+
+          let controls = null;
+          if(typeof THREE.OrbitControls !== 'undefined'){
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+          }
+
+          scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+          const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+          dir.position.set(10, 15, 12);
+          scene.add(dir);
+
+          const cargoGroup = new THREE.Group();
+          const labelGroup = new THREE.Group();
+          scene.add(cargoGroup);
+          scene.add(labelGroup);
+
+          state.scene = scene;
+          state.camera = camera;
+          state.renderer = renderer;
+          state.controls = controls;
+          state.cargoGroup = cargoGroup;
+          state.labelGroup = labelGroup;
+          state.use2DOnly = false;
+
+          els.viewer.style.display = 'block';
+          els.plan2d.style.display = 'none';
+          els.viewerMsg.textContent = '3D 图示已加载。白色线框为集装箱。';
+
+          function animate(){
+            if(!state.renderer) return;
+            requestAnimationFrame(animate);
+            if(state.controls) state.controls.update();
+            state.renderer.render(state.scene, state.camera);
+          }
+          animate();
+
+          window.addEventListener('resize', function(){
+            if(!state.renderer || !state.camera) return;
+            const w = viewer.clientWidth || 800;
+            const h = viewer.clientHeight || 520;
+            state.camera.aspect = w / h;
+            state.camera.updateProjectionMatrix();
+            state.renderer.setSize(w, h);
+          });
+
+        }catch(err){
+          state.use2DOnly = true;
+          els.viewer.innerHTML = '';
+          els.viewer.style.display = 'none';
+          els.plan2d.style.display = 'block';
+          els.viewerMsg.textContent = '3D 加载失败，已自动切换为 2D 图示。';
+        }
+      }
+
+      function clear3D(){
+        if(state.use2DOnly){
+          const ctx = els.plan2d.getContext('2d');
+          ctx.clearRect(0, 0, els.plan2d.width, els.plan2d.height);
+          return;
+        }
+
+        if(!state.cargoGroup || !state.labelGroup) return;
+
+        while(state.cargoGroup.children.length){
+          const obj = state.cargoGroup.children[0];
+          state.cargoGroup.remove(obj);
+          if(obj.geometry) obj.geometry.dispose();
+          if(obj.material){
+            if(Array.isArray(obj.material)){
+              obj.material.forEach(function(m){ if(m.dispose) m.dispose(); });
+            }else{
+              if(obj.material.dispose) obj.material.dispose();
+            }
+          }
+        }
+
+        while(state.labelGroup.children.length){
+          const obj = state.labelGroup.children[0];
+          state.labelGroup.remove(obj);
+          if(obj.material){
+            if(obj.material.map) obj.material.map.dispose();
+            if(obj.material.dispose) obj.material.dispose();
+          }
+        }
+      }
+
+      function makeTextSprite(text){
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 256, 128);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 64px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 128, 64);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(0.8, 0.4, 1);
+        return sprite;
+      }
+
+      function draw2D(container, placed, invalid){
+        const canvas = els.plan2d;
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0b0b0b';
+        ctx.fillRect(0, 0, W, H);
+
+        const margin = 60;
+        const drawW = W - margin * 2;
+        const drawH = H - margin * 2;
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(margin, margin, drawW, drawH);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px Arial';
+        ctx.fillText('集装箱俯视图', margin, margin - 15);
+
+        placed.forEach(function(it){
+          const x = margin + (it.x / container.W) * drawW;
+          const y = margin + (it.z / container.L) * drawH;
+          const w = (it.w / container.W) * drawW;
+          const h = (it.l / container.L) * drawH;
+
+          ctx.fillStyle = it.isStacked ? '#ff9f66' : '#66a3ff';
+          ctx.fillRect(x, y, w, h);
+
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, w, h);
+
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 16px Arial';
+          ctx.fillText(it.name, x + 6, y + 20);
+
+          if(it.isStacked){
+            ctx.font = '12px Arial';
+            ctx.fillText('叠', x + 6, y + 36);
+          }
+        });
+
+        if(invalid.length){
+          ctx.fillStyle = '#ff5b7f';
+          ctx.font = '14px Arial';
+          ctx.fillText('不可装：' + invalid.map(function(i){ return i.name; }).join('、'), margin, H - 20);
+        }
+      }
+
+      function draw3D(container, placed, invalid){
+        if(state.use2DOnly){
+          draw2D(container, placed, invalid);
+          return;
+        }
+
+        clear3D();
+
+        const scale = 0.001;
+        const cL = container.L * scale;
+        const cW = container.W * scale;
+        const cH = container.H * scale;
+
+        const boxGeo = new THREE.BoxGeometry(cW, cH, cL);
+        const edges = new THREE.EdgesGeometry(boxGeo);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff }));
+        state.cargoGroup.add(line);
+
+        const baseMat = new THREE.MeshLambertMaterial({ color: 0x66a3ff, transparent: true, opacity: 0.92 });
+        const stackMat = new THREE.MeshLambertMaterial({ color: 0xff9f66, transparent: true, opacity: 0.95 });
+        const invalidMat = new THREE.MeshLambertMaterial({ color: 0xff5b7f, transparent: true, opacity: 0.75 });
+
+        const originX = -cW / 2;
+        const originY = -cH / 2;
+        const originZ = -cL / 2;
+
+        placed.forEach(function(it){
+          const w = it.w * scale;
+          const h = it.h * scale;
+          const l = it.l * scale;
+
+          const geo = new THREE.BoxGeometry(w, h, l);
+          const mesh = new THREE.Mesh(geo, it.isStacked ? stackMat : baseMat);
+
+          mesh.position.x = originX + (it.x * scale) + w / 2;
+          mesh.position.y = originY + (it.y * scale) + h / 2;
+          mesh.position.z = originZ + (it.z * scale) + l / 2;
+
+          state.cargoGroup.add(mesh);
+
+          const label = makeTextSprite(it.name);
+          label.position.set(mesh.position.x, mesh.position.y + h / 2 + 0.15, mesh.position.z);
+          state.labelGroup.add(label);
+        });
+
+        invalid.forEach(function(it, idx){
+          const w = Math.min(it.w * scale, 1.0);
+          const h = Math.min(it.h * scale, 1.0);
+          const l = Math.min(it.l * scale, 1.0);
+
+          const geo = new THREE.BoxGeometry(w, h, l);
+          const mesh = new THREE.Mesh(geo, invalidMat);
+
+          mesh.position.set(cW / 2 + 1.2 + idx * 0.7, -cH / 2 + h / 2, -cL / 2 + l / 2);
+          state.cargoGroup.add(mesh);
+
+          const label = makeTextSprite(it.name);
+          label.position.set(mesh.position.x, mesh.position.y + h / 2 + 0.15, mesh.position.z);
+          state.labelGroup.add(label);
+        });
+
+        const maxDim = Math.max(cL, cW, cH);
+        state.camera.position.set(maxDim * 1.3, maxDim * 1.0, maxDim * 1.8);
+        state.camera.lookAt(0, 0, 0);
+        if(state.controls){
+          state.controls.target.set(0, 0, 0);
+          state.controls.update();
+        }
+        state.renderer.render(state.scene, state.camera);
+      }
+
+      els.addBtn.onclick = addItem;
+      els.genBtn.onclick = generatePlan;
+      els.clearBtn.onclick = clearItems;
+      els.resetBtn.onclick = resetExample;
+
+      init3D();
+      renderList();
+    });
+  </script>
+</body>
+</html>
